@@ -1,0 +1,129 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+
+<body>
+  <div id="app">
+    <nav>
+	<a href="https://www.ac6.fr/" target="_blank">
+	  <div class="logo__container">
+	    <svg class="logo__ac6" viewBox="0 0 644 86">
+	      <image xlink:href="assets/logo_ac6.svg"/>
+	    </svg>
+	  </div>
+	</a>
+      <ul class="nav__links">
+        <li class="links__btn links__btn--active">
+          <a class="links__anchor" href="/">STM32F4-DISCOVERY</a> 
+        </li>
+      </ul>
+    </nav>
+    <div id="container">
+       <svg class="board" version="1.1" width="100%" height="100%" viewBox="-500 0 1500 800">
+                <!-- Image of the board -->
+                <image xlink:href="assets/STM32F4BOARD.jpg" y="80" x="-150" preserveAspectRatio="none"
+                    height="455" width="715" />
+                <!-- Images replacing interactive elements (e.g., LEDs) -->
+                <rect class="interactive shadowed" id="LED--LED3" x="112" y="305" width="7" height="15" fill="orange"></rect>		
+                <rect class="interactive shadowed" id="LED--LED4" x="82" y="275" width="7" height="15" fill="#39ff14"></rect>
+                <rect class="interactive shadowed" id="LED--LED5" x="82" y="335" width="7" height="15" fill="#ff000a"></rect>
+                <rect class="interactive shadowed" id="LED--LED6" x="54" y="306" width="7" height="15" fill="#0078ff"></rect>                
+                <ellipse class="interactive" style="opacity:1;fill-opacity:1;" id="Button--UserButton" cx="88" cy="226" rx="16" ry="16"></ellipse>   
+		<ellipse class="interactive" style="opacity:1;fill-opacity:1;" id="Button--ResetButton" cx="88" cy="400" rx="16" ry="16"></ellipse>         
+
+	<div class="message-container" id="message-container">
+	    <pre id="uart-content"></pre>
+	</div>
+        </svg>
+    </div>
+  </div>
+  <footer>
+    <div class="footer__brand">
+      <svg class="logo__renode logo__footer" viewBox="0 0 215 32">
+        <image xlink:href="assets/renode-logo-white.svg"/>
+      </svg>
+      <div class="brand__container">
+        <span class="caption">By:</span>
+        <a class="brand__link" href="https://www.antmicro.com" target="_blank"></a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', (event) => {
+      console.log('DOM fully loaded and parsed')
+
+      let interactive = document.getElementsByClassName("interactive")
+      let els = {}
+      let uartChars = []
+      let uartContent = document.getElementById("message-container") 
+      for (el of interactive) {
+        let idSplit = el.id.split("--")
+        el.objectType = idSplit[0]
+        els[idSplit[1]] = el
+      }
+      for (el of Object.values(els)) {
+        if (el.objectType == "LED")
+          el.classList.add("hidden")
+      }
+
+      let ws = new WebSocket("ws://localhost:9001/")
+
+      ws.onopen = function () {
+        console.log("onopen")
+      }
+
+      var timeoutInMiliseconds = 3000;
+      var timeoutId;
+
+      function startTimer() { 
+          timeoutId = window.setTimeout(doInactive, timeoutInMiliseconds)
+      }
+
+      function resetTimer() { 
+        window.clearTimeout(timeoutId)
+        startTimer();
+      }
+
+      ws.onmessage = function (e) {
+        let split = e.data.split("|")
+        let type = split[0]
+        let name = split[1]
+        let message = split[2]
+
+        if (type == "LED") {
+          let el = els[name]
+          if(el == null) {
+            return
+          }
+          if (message == "True") {
+            el.classList.remove("hidden")
+          }
+          else {
+            el.classList.add("hidden")
+          }
+        }
+	else if (type == "UART") {
+	    uartChars.push(message); 
+	    uartContent.innerHTML = uartChars.join('') ;
+	    resetTimer();
+	}
+
+      }
+      // Function to send a message when the button is clicked
+      function sendToggleMessage() {
+          // Sending a WebSocket message to Renode to toggle the button
+          ws.send("TOGGLE_BUTTON");
+      }
+
+      // Adding a click event handler to the button
+      let button = document.getElementById("Button--UserButton")
+      button.addEventListener('click', sendToggleMessage)
+    })
+  </script>
+</body>
+
+</html>
+
